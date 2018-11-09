@@ -103,6 +103,30 @@ app.get('/movies/lastcreated/:nbrMovies', function(req, res) {
 		.catch((error) => console.log(error));
 })
 
+app.get('/movies/missingjaquette/:nbrMovies', function(req, res) {
+	var nbrMovies = req.params.nbrMovies;
+
+	selectNotJaquetteNotDatesMoviesPromise(nbrMovies)
+		.then((movies) => {
+			res.setHeader('Content-Type', 'application/json');
+			res.write(JSON.stringify(movies));
+			res.end();
+		})
+		.catch((error) => console.log(error));
+})
+
+app.get('/movies/missinggenres/:nbrMovies', function(req, res) {
+	var nbrMovies = req.params.nbrMovies;
+
+	selectMoviesWithoutGenres(nbrMovies)
+		.then((movies) => {
+			res.setHeader('Content-Type', 'application/json');
+			res.write(JSON.stringify(movies));
+			res.end();
+		})
+		.catch((error) => console.log(error));
+})
+
 app.post('/movies', function(req, res) {
 	insertMoviesPromise(customBody)
 		.then((result) => {
@@ -125,8 +149,28 @@ app.post('/movies/:idMovie/genres', function(req, res) {
 		.catch((error) => console.log(error));
 })
 
+app.post('/movies/genres', function(req, res) {
+	insertGenresToMoviesPromise(customBody)
+		.then((result) => {
+			res.setHeader('Content-Type', 'application/json');
+			res.write(JSON.stringify(result));
+			res.end();
+		})
+		.catch((error) => console.log(error));
+})
+
 app.put('/movies', function(req, res) {
 	updateMoviePromise(customBody)
+		.then((result) => {
+			res.setHeader('Content-Type', 'application/json');
+			res.write(JSON.stringify(result));
+			res.end();
+		})
+		.catch((error) => console.log(error));
+})
+
+app.put('/movies/missingjaquette', function(req, res) {
+	updateMoviesJaquetteDateCPromise(customBody)
 		.then((result) => {
 			res.setHeader('Content-Type', 'application/json');
 			res.write(JSON.stringify(result));
@@ -450,6 +494,32 @@ function selectFilmGenresPromise(idMovie) {
 		INNER JOIN genres as g
 			ON fg.id_genre = g.id_genre
 		WHERE id_film = ` + idMovie;
+
+		connection.query(
+		  selectQuery,
+		  function select(error, results, fields) {
+		    if (error) {
+		      console.log(error);
+		      connection.end();
+		      reject("No Datas");
+		    }
+
+		    closeConnection(connection);
+
+		    resolve(results);
+		});
+	});
+}
+
+function selectNotJaquetteNotDatesMoviesPromise(nbrMovies) {
+	return new Promise((resolve, reject) => {
+		var connection = createConnection();
+
+		var selectQuery = 
+		`SELECT id_film, titre, jaquette, annee_sortie
+		FROM films
+		WHERE jaquette IS NULL OR annee_sortie IS NULL
+		LIMIT ` + nbrMovies;
 
 		connection.query(
 		  selectQuery,
@@ -918,6 +988,33 @@ function selectAllMoviesFromOnePersonne(id) {
 	});
 }
 
+function selectMoviesWithoutGenres(nbrMovies) {
+	return new Promise((resolve, reject) => {
+		var connection = createConnection();
+
+		var finalRequest = `
+		SELECT f.id_film, titre, jaquette
+		FROM films as f
+		LEFT JOIN film_genre as fg
+			ON f.id_film = fg.id_film
+		WHERE fg.id_film IS NULL
+		LIMIT ` + nbrMovies;
+
+		connection.query(
+		  finalRequest,
+		  function (error, results) {
+		    if (error) {
+		      connection.end();
+		      throw error;
+		    }
+
+		    closeConnection(connection);
+
+		    resolve(results);
+		});
+	});
+}
+
 let selectAllNationalitesPromise = new Promise(
 	(resolve, reject) => {
 		var connection = createConnection();
@@ -972,6 +1069,69 @@ function insertMoviesPromise(movies) {
 		    closeConnection(connection);
 
 		    resolve({data : moviesToInsert.length + " rows inserted!!"});
+		});
+	});
+}
+
+function insertGenresToMoviesPromise(movies) {
+	return new Promise((resolve, reject) => {
+		var connection = createConnection();
+		var genresToInsertToMovies = [];
+		var movieElement;
+
+		var selectQuery = 'INSERT INTO film_genre (id_film, id_genre) VALUES ?';
+
+		movies.forEach(movie => {
+			movieElement = [];
+
+			movieElement[0] = movie.id_film;
+			movieElement[1] = movie.id_genre;
+
+			genresToInsertToMovies.push(movieElement);
+		});
+
+		connection.query(
+		  selectQuery,
+		  [genresToInsertToMovies],
+		  function (error, results) {
+		    if (error) {
+		      connection.end();
+		      throw error;
+		    }
+
+		    closeConnection(connection);
+
+		    resolve(movies);
+		});
+	});
+}
+
+function updateMoviesJaquetteDateCPromise(movies) {
+	return new Promise((resolve, reject) => {
+		var connection = createConnection();
+		var finalRequest = "";
+
+		movies.forEach(movie => {
+			var customRequest = `
+				UPDATE films 
+				SET jaquette = "` + movie.jaquette + `", 
+				annee_sortie = "` + movie.annee_sortie + `" 
+				WHERE id_film = ` + movie.id_film + `;`;
+
+				finalRequest += customRequest;
+		});
+
+		connection.query(
+		  finalRequest,
+		  function (error, results) {
+		    if (error) {
+		      connection.end();
+		      throw error;
+		    }
+
+		    closeConnection(connection);
+
+		    resolve(movies);
 		});
 	});
 }
@@ -1239,7 +1399,8 @@ function createConnection() {
 	  host     : "localhost",
 	  user     : "root",
 	  password : "",
-	  database : "films"
+	  database : "films",
+	  multipleStatements: true,
 	});
 
 	return connection;

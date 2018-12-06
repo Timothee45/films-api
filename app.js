@@ -276,6 +276,18 @@ app.get('/personnes/:idPersonne/movies', function(req, res) {
 		.catch((error) => console.log(error));
 })
 
+app.get('/personnes/missinginfos/:nbrPersonnes', function(req, res) {
+	var nbrPersonnes = req.params.nbrPersonnes;
+
+	selectPersonnesMissingInfos(nbrPersonnes)
+		.then((personne) => {
+			res.setHeader('Content-Type', 'application/json');
+			res.write(JSON.stringify(personne));
+			res.end();
+		})
+		.catch((error) => console.log(error));
+})
+
 app.put('/personnes', function(req, res) {
 	updatePersonnePromise(customBody)
 		.then((personne) => {
@@ -467,6 +479,32 @@ function selectFilmByIdPromise(id) {
 			ON t.id_type = f.id_type
 		WHERE f.id_film = ` + id + 
 		` ORDER BY f.titre`;
+
+		connection.query(
+		  selectQuery,
+		  function select(error, results, fields) {
+		    if (error) {
+		      console.log(error);
+		      connection.end();
+		      reject("No Datas");
+		    }
+
+		    closeConnection(connection);
+
+		    resolve(results);
+		});
+	});
+}
+
+function selectPersonnesMissingInfos(nbrPersonnes) {
+	return new Promise((resolve, reject) => {
+		var connection = createConnection();
+
+		var selectQuery = 
+		`SELECT * 
+		FROM personnes 
+		WHERE photo_profil IS NULL OR id_nationalite IS NULL OR date_naissance IS NULL 
+		LIMIT ` + nbrPersonnes;
 
 		connection.query(
 		  selectQuery,

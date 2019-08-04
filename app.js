@@ -1086,7 +1086,7 @@ function insertMoviesPromise(movies) {
 			movieElement = [];
 
 			movieElement[0] = movie.name;
-			movieElement[1] = movie.seen.toString();
+			movieElement[1] = movie.seen;
 			movieElement[2] = movie.extension;
 			movieElement[3] = movie.date_c.toString();
 			movieElement[4] = movie.ddur.toString();

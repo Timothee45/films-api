@@ -1182,7 +1182,7 @@ function updateMoviePromise(movie) {
 
 		movieKeys.forEach(key => {
 			if (!moviesColBlackList.includes(key)) {
-				var movieValue = movie[key] ? movie[key].toString() : null;
+				var movieValue = movie[key] ? movie[key] : null;
 				requestValues += key + ' = "' + movieValue + '", ';
 			}
 		});
